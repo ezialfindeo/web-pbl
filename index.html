@@ -1,11 +1,583 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Smart Lab IoT</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Door Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .status-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .status-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .status-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .status-title {
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .status-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .status-time {
+            font-size: 0.9rem;
+            color: #999;
+        }
+
+        .locked { color: #e74c3c; }
+        .unlocked { color: #27ae60; }
+        .open { color: #f39c12; }
+        .closed { color: #3498db; }
+        .armed { color: #8e44ad; }
+        .disarmed { color: #95a5a6; }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .control-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .control-btn:active {
+            transform: translateY(0);
+        }
+
+        .danger {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+        }
+
+        .success {
+            background: linear-gradient(45deg, #27ae60, #229954);
+        }
+
+        .logs-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .logs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .logs-title {
+            font-size: 1.5rem;
+            color: #333;
+        }
+
+        .clear-logs-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .logs-container {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .log-entry {
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .log-normal { background: #f8f9fa; }
+        .log-success { background: #d4edda; color: #155724; }
+        .log-warning { background: #fff3cd; color: #856404; }
+        .log-danger { background: #f8d7da; color: #721c24; }
+
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            border-radius: 20px;
+            color: white;
+            font-weight: bold;
+            z-index: 1000;
+        }
+
+        .connected { background: #27ae60; }
+        .disconnected { background: #e74c3c; }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .status-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .control-btn {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+    </style>
 </head>
 <body>
-  <h1>Selamat datang di Smart Lab IoT</h1>
-  <p>Website ini dibuat menggunakan GitHub Pages.</p>
+    <div class="connection-status" id="connectionStatus">
+        🔄 Connecting...
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>🚪 Smart Door Monitor</h1>
+            <p>Real-time monitoring and control system</p>
+        </div>
+
+        <div class="status-grid">
+            <div class="status-card">
+                <div class="status-icon">🔒</div>
+                <div class="status-title">Door Status</div>
+                <div class="status-value" id="doorStatus">Loading...</div>
+                <div class="status-time" id="doorStatusTime">--</div>
+            </div>
+
+            <div class="status-card">
+                <div class="status-icon">🚪</div>
+                <div class="status-title">Door Sensor</div>
+                <div class="status-value" id="doorSensor">Loading...</div>
+                <div class="status-time" id="sensorTime">--</div>
+            </div>
+
+            <div class="status-card">
+                <div class="status-icon">🛡️</div>
+                <div class="status-title">System Status</div>
+                <div class="status-value" id="systemStatus">Loading...</div>
+                <div class="status-time" id="systemTime">--</div>
+            </div>
+
+            <div class="status-card">
+                <div class="status-icon">⏱️</div>
+                <div class="status-title">Last Update</div>
+                <div class="status-value" id="lastUpdate">Loading...</div>
+                <div class="status-time" id="uptime">--</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="control-btn success" onclick="sendCommand('unlock')">
+                🔓 Unlock Door
+            </button>
+            <button class="control-btn danger" onclick="sendCommand('lock')">
+                🔒 Lock Door
+            </button>
+            <button class="control-btn" onclick="sendCommand('arm')">
+                🛡️ Arm System
+            </button>
+            <button class="control-btn" onclick="sendCommand('disarm')">
+                ⚠️ Disarm System
+            </button>
+        </div>
+
+        <div class="logs-section">
+            <div class="logs-header">
+                <h3 class="logs-title">📋 Activity Logs</h3>
+                <button class="clear-logs-btn" onclick="clearLogs()">Clear Logs</button>
+            </div>
+            <div class="logs-container" id="logsContainer">
+                <div class="log-entry log-normal">System started - Waiting for data...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+    <script>
+        // Firebase configuration - Replace with your config
+        const firebaseConfig = {
+            apiKey: "your-api-key",
+            authDomain: "your-project.firebaseapp.com",
+            databaseURL: "https://your-project-default-rtdb.firebaseio.com/",
+            projectId: "your-project-id",
+            storageBucket: "your-project.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "your-app-id"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // Connection status
+        let isConnected = false;
+
+        // Initialize the app
+        function initApp() {
+            console.log("Initializing Smart Door Monitor...");
+            
+            // Monitor connection status
+            const connectedRef = database.ref('.info/connected');
+            connectedRef.on('value', (snapshot) => {
+                isConnected = snapshot.val();
+                updateConnectionStatus();
+            });
+
+            // Listen to door data
+            listenToDataChanges();
+            
+            // Start periodic updates
+            setInterval(updateDisplay, 1000);
+        }
+
+        function updateConnectionStatus() {
+            const statusElement = document.getElementById('connectionStatus');
+            if (isConnected) {
+                statusElement.textContent = '🟢 Connected';
+                statusElement.className = 'connection-status connected';
+            } else {
+                statusElement.textContent = '🔴 Disconnected';
+                statusElement.className = 'connection-status disconnected';
+            }
+        }
+
+        function listenToDataChanges() {
+            // Listen to door status
+            database.ref('door/status').on('value', (snapshot) => {
+                const status = snapshot.val();
+                updateDoorStatus(status);
+            });
+
+            // Listen to sensor status
+            database.ref('door/sensor').on('value', (snapshot) => {
+                const sensor = snapshot.val();
+                updateSensorStatus(sensor);
+            });
+
+            // Listen to system armed status
+            database.ref('door/systemArmed').on('value', (snapshot) => {
+                const armed = snapshot.val();
+                updateSystemStatus(armed);
+            });
+
+            // Listen to last update time
+            database.ref('door/lastUpdate').on('value', (snapshot) => {
+                const time = snapshot.val();
+                updateLastUpdate(time);
+            });
+
+            // Listen to uptime
+            database.ref('door/uptime').on('value', (snapshot) => {
+                const uptime = snapshot.val();
+                updateUptime(uptime);
+            });
+
+            // Listen to new logs
+            database.ref('door/logs').limitToLast(10).on('child_added', (snapshot) => {
+                const logEntry = snapshot.val();
+                addLogEntry(logEntry);
+            });
+
+            // Listen to alerts
+            database.ref('door/alert').on('value', (snapshot) => {
+                const alert = snapshot.val();
+                if (alert && alert.includes('FORCED_ENTRY')) {
+                    showAlert('🚨 FORCED ENTRY DETECTED! 🚨');
+                }
+            });
+        }
+
+        function updateDoorStatus(status) {
+            const element = document.getElementById('doorStatus');
+            const timeElement = document.getElementById('doorStatusTime');
+            
+            if (status === 'LOCKED') {
+                element.textContent = '🔒 LOCKED';
+                element.className = 'status-value locked';
+            } else if (status === 'UNLOCKED') {
+                element.textContent = '🔓 UNLOCKED';
+                element.className = 'status-value unlocked';
+            } else {
+                element.textContent = '❓ Unknown';
+                element.className = 'status-value';
+            }
+            
+            timeElement.textContent = getCurrentTime();
+        }
+
+        function updateSensorStatus(sensor) {
+            const element = document.getElementById('doorSensor');
+            const timeElement = document.getElementById('sensorTime');
+            
+            if (sensor === 'OPEN') {
+                element.textContent = '📖 OPEN';
+                element.className = 'status-value open';
+            } else if (sensor === 'CLOSED') {
+                element.textContent = '📕 CLOSED';
+                element.className = 'status-value closed';
+            } else {
+                element.textContent = '❓ Unknown';
+                element.className = 'status-value';
+            }
+            
+            timeElement.textContent = getCurrentTime();
+        }
+
+        function updateSystemStatus(armed) {
+            const element = document.getElementById('systemStatus');
+            const timeElement = document.getElementById('systemTime');
+            
+            if (armed) {
+                element.textContent = '🛡️ ARMED';
+                element.className = 'status-value armed';
+            } else {
+                element.textContent = '⚠️ DISARMED';
+                element.className = 'status-value disarmed';
+            }
+            
+            timeElement.textContent = getCurrentTime();
+        }
+
+        function updateLastUpdate(time) {
+            const element = document.getElementById('lastUpdate');
+            element.textContent = time || 'No data';
+        }
+
+        function updateUptime(seconds) {
+            const element = document.getElementById('uptime');
+            if (seconds) {
+                const hours = Math.floor(seconds / 3600);
+                const minutes = Math.floor((seconds % 3600) / 60);
+                element.textContent = `Uptime: ${hours}h ${minutes}m`;
+            } else {
+                element.textContent = 'Uptime: --';
+            }
+        }
+
+        function addLogEntry(logText) {
+            const container = document.getElementById('logsContainer');
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            
+            // Determine log type and styling
+            if (logText.includes('ALARM') || logText.includes('FORCED')) {
+                logEntry.className += ' log-danger';
+            } else if (logText.includes('Access Granted') || logText.includes('Door Opened')) {
+                logEntry.className += ' log-success';
+            } else if (logText.includes('Access Denied')) {
+                logEntry.className += ' log-warning';
+            } else {
+                logEntry.className += ' log-normal';
+            }
+            
+            logEntry.textContent = logText;
+            
+            // Add to top of container
+            container.insertBefore(logEntry, container.firstChild);
+            
+            // Keep only last 20 entries
+            while (container.children.length > 20) {
+                container.removeChild(container.lastChild);
+            }
+            
+            // Auto-scroll to top for new entries
+            container.scrollTop = 0;
+        }
+
+        function sendCommand(command) {
+            if (!isConnected) {
+                alert('Not connected to system!');
+                return;
+            }
+            
+            const confirmation = confirm(`Are you sure you want to ${command.toUpperCase()} the system?`);
+            if (!confirmation) return;
+            
+            // Send command to Firebase
+            database.ref('door/commands').push({
+                command: command,
+                timestamp: getCurrentTime(),
+                source: 'web_app'
+            }).then(() => {
+                console.log(`Command ${command} sent successfully`);
+                addLogEntry(`${getCurrentTime()}: Command sent - ${command.toUpperCase()}`);
+            }).catch((error) => {
+                console.error('Error sending command:', error);
+                alert('Failed to send command!');
+            });
+        }
+
+        function clearLogs() {
+            const container = document.getElementById('logsContainer');
+            container.innerHTML = '<div class="log-entry log-normal">Logs cleared</div>';
+        }
+
+        function showAlert(message) {
+            // Create alert overlay
+            const overlay = document.createElement('div');
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(231, 76, 60, 0.9);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+                font-size: 2rem;
+                color: white;
+                text-align: center;
+                animation: blink 1s infinite;
+            `;
+            
+            overlay.innerHTML = `
+                <div>
+                    ${message}
+                    <br><br>
+                    <button onclick="this.parentElement.parentElement.remove()" 
+                            style="padding: 15px 30px; font-size: 1rem; background: white; color: #e74c3c; border: none; border-radius: 25px; cursor: pointer;">
+                        ACKNOWLEDGE
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+            
+            // Add blinking animation
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes blink {
+                    0%, 50% { opacity: 1; }
+                    51%, 100% { opacity: 0.7; }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            // Auto-remove after 10 seconds
+            setTimeout(() => {
+                if (overlay.parentElement) {
+                    overlay.remove();
+                }
+            }, 10000);
+        }
+
+        function getCurrentTime() {
+            return new Date().toLocaleString();
+        }
+
+        function updateDisplay() {
+            // Update any time-sensitive displays
+            // This runs every second
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', initApp);
+
+        // Handle page visibility changes
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                // Page became visible, refresh data
+                console.log('Page visible, refreshing data...');
+            }
+        });
+
+        // Add service worker for offline functionality (optional)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(console.error);
+        }
+    </script>
 </body>
 </html>
